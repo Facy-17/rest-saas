@@ -5,456 +5,96 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Panel SaaS Multi-Restaurante | Farj Services</title>
+  <meta name="theme-color" content="#ea580c" />
+  <title>Menú Digital</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-950 min-h-screen">
+<body class="bg-slate-50 text-slate-950 min-h-screen pb-28">
 
-  <div id="toast" class="hidden fixed top-5 right-4 z-50 bg-slate-950 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl border border-orange-500 max-w-xs"></div>
+  <header id="pubHeader" class="relative text-white px-6 py-12 shadow-md overflow-hidden transition-colors" style="background-color: #ea580c;">
+    <img id="pubBannerImg" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover" />
+    <div id="pubBannerOverlay" class="hidden absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/40"></div>
 
-  <!-- ==================== MODAL KIT QR DE MESA (BENEFICIO MASTER / PRO) ==================== -->
-  <div id="qrModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm p-4 flex items-center justify-center">
-    <div class="bg-white max-w-sm w-full rounded-3xl shadow-2xl border border-slate-200 p-6 text-center space-y-4">
-      <span class="inline-block bg-orange-100 text-orange-700 text-[10px] font-extrabold uppercase px-3 py-1 rounded-full">
-        Kit QR Oficial • Farj Services
+    <div class="relative z-10 max-w-3xl mx-auto">
+      <span class="inline-block bg-black/30 backdrop-blur-sm text-white text-[11px] font-bold uppercase px-3 py-1 rounded-full mb-3">
+        Menú Digital Oficial
       </span>
-      <h3 id="qrRestTitle" class="text-xl font-extrabold text-slate-950">Mi Restaurante</h3>
-      <p class="text-xs text-slate-600">Escanea para ver nuestro menú digital y ordenar por WhatsApp</p>
-      <div id="qrCanvasBox" class="flex justify-center p-4 bg-white border-2 border-slate-900 rounded-2xl mx-auto w-fit"></div>
-      <p id="qrUrlLabel" class="text-[11px] font-mono text-slate-500 break-all"></p>
-      <div class="grid grid-cols-2 gap-2 pt-2">
-        <button type="button" id="btnDownloadQr" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold cursor-pointer">
-          ⬇️ Descargar PNG
-        </button>
-        <button type="button" id="btnCloseQr" class="py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-xl text-xs font-extrabold cursor-pointer">
-          Cerrar
+      <h1 id="pubName" class="text-3xl sm:text-4xl font-extrabold tracking-tight">Cargando menú...</h1>
+      <p id="pubDesc" class="text-white/95 text-sm mt-2 max-w-xl"></p>
+      <p id="pubAddress" class="text-xs text-white/90 mt-3 font-bold"></p>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+    <div id="searchAndFilterBox" class="space-y-4">
+      <input
+        id="searchInput"
+        type="text"
+        maxlength="60"
+        placeholder="🔍 Buscar platillo o bebida..."
+        class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-sm text-slate-950 shadow-sm focus:outline-none focus:border-orange-500"
+      />
+      <div id="categoryPills" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+    </div>
+
+    <section id="pubGallerySection" class="hidden space-y-3">
+      <h2 class="font-extrabold text-slate-950 text-base">Conoce nuestro lugar</h2>
+      <div id="pubGalleryList" class="flex gap-3 overflow-x-auto pb-2"></div>
+    </section>
+
+    <section id="pubMenuContainer" class="space-y-8"></section>
+
+    <!-- MÓDULO EXCLUSIVO MASTER/PRO: ENTREGA EXPRESS Y SINPE MÓVIL (APARECE AL AGREGAR PLATILLOS) -->
+    <section id="checkoutExtrasBox" class="hidden bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+      <h3 class="font-extrabold text-sm text-slate-950">Detalles de Entrega y Pago</h3>
+
+      <!-- Express (Solo si el restaurante es Master/Pro y configuró tarifa > 0) -->
+      <div id="expressSelectorBox" class="hidden space-y-3">
+        <div class="grid grid-cols-2 gap-2 text-xs font-extrabold">
+          <button type="button" id="btnModePickup" class="py-2.5 px-3 rounded-xl border-2 border-slate-900 bg-slate-900 text-white cursor-pointer">
+            🏪 Retiro en Local (₡0)
+          </button>
+          <button type="button" id="btnModeExpress" class="py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer">
+            🛵 Envío Express (+<span id="expressFeeBtnLabel">₡0</span>)
+          </button>
+        </div>
+        <p id="expressZonesHint" class="text-[11px] text-slate-600"></p>
+        <div id="expressAddressField" class="hidden">
+          <label class="text-xs font-bold text-slate-800">Dirección exacta para el repartidor</label>
+          <input id="customerAddressInput" type="text" maxlength="160" placeholder="Ej. 200m norte de la iglesia, casa portón negro..." class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-xs text-slate-950" />
+        </div>
+      </div>
+
+      <!-- SINPE Móvil (Solo si el restaurante es Pro VIP y configuró su número) -->
+      <div id="sinpeInfoBox" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p class="text-[11px] font-extrabold uppercase text-emerald-800">📲 Pago rápido por SINPE Móvil</p>
+          <p class="text-sm font-extrabold text-slate-950" id="sinpePhoneDisplay">8888-8888</p>
+          <p class="text-[11px] text-slate-700" id="sinpeOwnerDisplay"></p>
+        </div>
+        <button type="button" id="btnCopySinpe" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold px-3 py-2 rounded-xl cursor-pointer">
+          📋 Copiar Número
         </button>
       </div>
-    </div>
+    </section>
+  </main>
+
+  <div id="floatingCart" class="hidden fixed bottom-4 inset-x-4 max-w-3xl mx-auto z-40">
+    <button id="btnSendWhatsapp" type="button" class="w-full text-white py-4 px-6 rounded-2xl shadow-2xl font-extrabold flex items-center justify-between cursor-pointer" style="background-color: #ea580c;">
+      <span id="cartSummaryText">🛒 Pedir por WhatsApp (0)</span>
+      <span id="cartTotalText">₡0 →</span>
+    </button>
   </div>
 
-  <!-- ==================== MODAL CANDADO FARJ SERVICES ==================== -->
-  <div id="farjVaultModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm overflow-y-auto p-4 flex items-center justify-center">
-    <div class="bg-slate-900 text-white max-w-5xl w-full rounded-3xl shadow-2xl border border-amber-400/40 p-6 sm:p-7 my-auto space-y-5">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        <div>
-          <span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
-            🔒 Bóveda Administrativa Farj Services
-          </span>
-          <h2 class="text-xl sm:text-2xl font-extrabold mt-1">Control de Pagos, Solicitudes y Cortes</h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <button type="button" id="btnRefreshVault" class="bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">
-            🔄 Actualizar
-          </button>
-          <button type="button" id="btnCloseVault" class="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white text-xs font-bold px-3.5 py-2 rounded-xl cursor-pointer">
-            Cerrar ✕
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-slate-950 border border-amber-500/40 p-3.5 rounded-2xl">
-          <p class="text-[11px] font-bold text-amber-400 uppercase">🔔 Solicitudes Nuevas</p>
-          <p id="vCountRequests" class="text-2xl font-extrabold mt-0.5">0</p>
-        </div>
-        <div class="bg-slate-950 border border-red-500/40 p-3.5 rounded-2xl">
-          <p class="text-[11px] font-bold text-red-400 uppercase">🚨 Vencidos / Cortar</p>
-          <p id="vCountOverdue" class="text-2xl font-extrabold mt-0.5">0</p>
-        </div>
-        <div class="bg-slate-950 border border-orange-500/40 p-3.5 rounded-2xl">
-          <p class="text-[11px] font-bold text-orange-300 uppercase">⏳ Vencen en ≤5 días</p>
-          <p id="vCountSoon" class="text-2xl font-extrabold mt-0.5">0</p>
-        </div>
-        <div class="bg-slate-950 border border-emerald-500/40 p-3.5 rounded-2xl">
-          <p class="text-[11px] font-bold text-emerald-400 uppercase">💰 Ingreso Activo</p>
-          <p id="vMrrTotal" class="text-xl font-extrabold mt-0.5">₡0</p>
-        </div>
-      </div>
-
-      <div id="vaultFilterBar" class="flex flex-wrap gap-2 text-xs font-bold">
-        <button type="button" data-vfilter="ALL" class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 cursor-pointer">Todos</button>
-        <button type="button" data-vfilter="REQUESTS" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 cursor-pointer">🔔 Solicitudes por Verificar</button>
-        <button type="button" data-vfilter="DUE" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 cursor-pointer">🚨 Por Vencer / Cortar Servicio</button>
-        <button type="button" data-vfilter="PAID" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 cursor-pointer">✅ Pagados al Día</button>
-      </div>
-
-      <div id="vaultListContainer" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
-    </div>
-  </div>
-
-  <!-- ==================== MODAL DE PLANES SAAS ==================== -->
-  <div id="plansModal" class="hidden fixed inset-0 z-40 bg-slate-950/85 backdrop-blur-sm overflow-y-auto p-4 flex items-center justify-center">
-    <div class="bg-white max-w-5xl w-full rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-8 my-auto space-y-6">
-      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <span class="inline-block bg-orange-100 text-orange-700 font-extrabold text-[11px] uppercase px-3 py-1 rounded-full">
-            Membresías Farj Services
-          </span>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-950 mt-1">Elige el nivel de potencia para tu restaurante</h2>
-          <p class="text-xs sm:text-sm text-slate-600 mt-1">Al activar tu plan se desbloquean automáticamente las herramientas exclusivas en tu panel.</p>
-        </div>
-        <button id="btnClosePlans" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer">
-          Continuar al Panel →
-        </button>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-5">
-        <div class="rounded-2xl border-2 border-slate-300 bg-slate-50 p-5 flex flex-col justify-between space-y-5">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold uppercase text-slate-600">Plan Básico</span>
-              <span id="badgePlanBasico" class="bg-emerald-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">TU PLAN ACTUAL</span>
-            </div>
-            <div>
-              <p class="text-3xl font-extrabold text-slate-950">₡0 <span class="text-xs font-bold text-slate-500">/ $0 USD</span></p>
-              <p class="text-xs text-slate-600 mt-0.5">Ideal para digitalizar tu carta inicial</p>
-            </div>
-            <ul class="space-y-2 text-xs text-slate-800 pt-2 border-t border-slate-200">
-              <li>✅ Menú digital público con enlace único</li>
-              <li>✅ Hasta 15 platillos publicados</li>
-              <li>✅ Botón de pedido directo a WhatsApp</li>
-              <li>✅ Control de platillos Agotados y Promociones</li>
-              <li class="text-slate-400">✖ Sin generador de QR de mesa</li>
-              <li class="text-slate-400">✖ Sin tarifa de envío Express ni SINPE integrado</li>
-            </ul>
-          </div>
-          <button type="button" id="btnKeepBasico" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold cursor-pointer">
-            Usar Plan Básico Activo
-          </button>
-        </div>
-
-        <div class="rounded-2xl border-2 border-orange-500 bg-white p-5 shadow-xl relative flex flex-col justify-between space-y-5">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold uppercase text-orange-600">Plan Master</span>
-              <span id="badgePlanMaster" class="bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">MÁS ELEGIDO</span>
-            </div>
-            <div>
-              <p class="text-3xl font-extrabold text-slate-950">₡20,000 <span class="text-xs font-bold text-slate-500">/ mes</span></p>
-              <p class="text-sm font-extrabold text-orange-600">$39 USD / mes</p>
-              <p class="text-xs text-slate-600 mt-0.5">Para restaurantes que buscan vender todos los días</p>
-            </div>
-            <ul class="space-y-2 text-xs text-slate-900 font-medium pt-2 border-t border-slate-200">
-              <li>🔥 <b>Platillos y categorías ilimitadas</b></li>
-              <li>🔥 <b>Generador de Código QR de mesa</b> descargable en PNG</li>
-              <li>🔥 <b>Tarifa de Envío Express automática</b> en el carrito</li>
-              <li>🔥 <b>Promociones con precio tachado</b> y ofertas flash</li>
-              <li>🔥 <b>Configuración inicial asistida</b> por Farj Services</li>
-              <li>🔥 Soporte prioritario por WhatsApp 7 días</li>
-            </ul>
-          </div>
-          <button type="button" data-upgrade="master" data-price="₡20,000 / $39 USD" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-extrabold shadow cursor-pointer">
-            Solicitar Plan Master →
-          </button>
-        </div>
-
-        <div class="rounded-2xl border-2 border-slate-950 bg-slate-950 text-white p-5 shadow-2xl flex flex-col justify-between space-y-5">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold uppercase text-amber-400">Plan Pro • VIP</span>
-              <span id="badgePlanPro" class="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">IMPACTO TOTAL</span>
-            </div>
-            <div>
-              <p class="text-3xl font-extrabold text-white">₡32,800 <span class="text-xs font-bold text-slate-400">/ mes</span></p>
-              <p class="text-sm font-extrabold text-amber-400">$65 USD / mes</p>
-              <p class="text-xs text-slate-300 mt-0.5">Cobro SINPE integrado, dominio propio y VIP</p>
-            </div>
-            <ul class="space-y-2 text-xs text-slate-100 pt-2 border-t border-slate-800">
-              <li>🚀 <b>Todo lo del Plan Master incluido</b></li>
-              <li>🚀 <b>Módulo SINPE Móvil integrado</b> en el menú (copia en 1 clic)</li>
-              <li>🚀 <b>Dominio web propio</b> (ej. <i>www.turestaurante.com</i>)</li>
-              <li>🚀 <b>Asistente IA en WhatsApp</b> disponible bajo solicitud</li>
-              <li>🚀 <b>Comandas digitales</b> y soporte VIP preferencial</li>
-            </ul>
-          </div>
-          <button type="button" data-upgrade="pro" data-price="₡32,800 / $65 USD" class="w-full py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-extrabold shadow cursor-pointer">
-            Solicitar Plan Pro VIP →
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== PANTALLA DE ACCESO ==================== -->
-  <section id="authScreen" class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
-    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-7 shadow-2xl space-y-5">
-      <div class="text-center space-y-2">
-        <span class="inline-block bg-orange-600 text-white font-extrabold px-3 py-1 rounded-xl text-xs">
-          FARJ SERVICES • MENÚWEB SAAS
-        </span>
-        <h1 class="text-2xl font-extrabold tracking-tight">Acceso para Restaurantes</h1>
-        <p class="text-xs text-slate-300">Administra el menú digital de tu negocio en la nube</p>
-      </div>
-
-      <div id="envWarning" class="hidden bg-red-950/90 border border-red-500 text-red-200 text-xs p-3 rounded-xl leading-relaxed"></div>
-
-      <div class="grid grid-cols-2 bg-slate-800 p-1 rounded-xl text-xs font-bold">
-        <button id="tabLogin" type="button" class="py-2.5 rounded-lg bg-orange-600 text-white transition cursor-pointer">
-          Iniciar Sesión
-        </button>
-        <button id="tabRegister" type="button" class="py-2.5 rounded-lg text-slate-300 hover:text-white transition cursor-pointer">
-          Crear Cuenta Nueva
-        </button>
-      </div>
-
-      <form id="authForm" class="space-y-4">
-        <div id="registerNameBox" class="hidden">
-          <label class="text-xs font-bold text-slate-200">Nombre de tu restaurante</label>
-          <input id="regRestName" type="text" maxlength="80" placeholder="Ej. Soda Secretos de la Abuela" class="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500" />
-        </div>
-
-        <div>
-          <label class="text-xs font-bold text-slate-200">Correo electrónico</label>
-          <input id="authEmailInput" type="email" required maxlength="120" placeholder="tu-correo@gmail.com" class="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500" />
-        </div>
-
-        <div>
-          <label class="text-xs font-bold text-slate-200">Contraseña (mínimo 6 caracteres)</label>
-          <input id="authPassInput" type="password" required minlength="6" maxlength="72" placeholder="••••••••" class="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500" />
-        </div>
-
-        <button id="btnSubmitAuth" type="submit" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 active:scale-[0.99] text-white rounded-xl font-extrabold text-sm transition cursor-pointer shadow-lg">
-          Entrar al Panel →
-        </button>
-      </form>
-
-      <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-400">
-        <span id="authStatusLine">Conectando...</span>
-        <button type="button" id="btnUnlockAuth" class="hover:text-amber-400 transition cursor-pointer" title="Acceso Maestro Farj Services">
-          🔒 Admin
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== PANEL DEL RESTAURANTE ==================== -->
-  <div id="dashboardScreen" class="hidden">
-    <nav class="bg-slate-950 text-white px-4 py-3.5 sticky top-0 z-30 shadow-md">
-      <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="bg-orange-600 text-white font-extrabold px-2.5 py-1 rounded-lg text-xs">SAAS</span>
-          <span id="navUserEmail" class="font-bold text-xs sm:text-sm truncate max-w-[150px]">Mi Restaurante</span>
-          <button id="btnOpenPlansNav" type="button" class="bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase cursor-pointer">
-            ⭐ Plan: <span id="currentPlanBadge">Básico</span>
-          </button>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="btnOpenQr" type="button" class="bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-300 hover:text-white px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer">
-            📱 QR Mesa
-          </button>
-          <button id="btnCopyLink" type="button" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer">
-            🔗 Link
-          </button>
-          <a id="btnOpenPublicMenu" href="/" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">
-            👁️ Ver Menú
-          </a>
-          <button type="button" id="btnUnlockNav" class="bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-amber-400 px-2.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer" title="Candado Farj Services">
-            🔒
-          </button>
-          <button id="btnLogout" type="button" class="bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer">
-            Salir
-          </button>
-        </div>
-      </div>
-    </nav>
-
-    <div id="serviceAlertBanner" class="hidden max-w-5xl mx-auto px-4 sm:px-6 pt-4"></div>
-
-    <main class="max-w-5xl mx-auto p-4 sm:p-6 grid md:grid-cols-3 gap-6">
-      <section class="space-y-6">
-        <div class="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between gap-3">
-          <div>
-            <p class="text-[11px] uppercase font-bold text-slate-400">Suscripción Actual</p>
-            <p id="cardPlanName" class="text-base font-extrabold text-amber-400">Plan Básico (Gratis)</p>
-            <p id="cardPlanExpiry" class="text-[11px] text-slate-400 mt-0.5"></p>
-          </div>
-          <button type="button" id="btnUpgradeCard" class="bg-orange-600 hover:bg-orange-500 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl transition cursor-pointer shrink-0">
-            Mejorar Plan
-          </button>
-        </div>
-
-        <!-- 1. Datos Básicos -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <h2 class="font-extrabold text-base text-slate-950">1. Datos del Restaurante</h2>
-          
-          <div>
-            <label class="text-xs font-bold text-slate-950">Nombre del negocio</label>
-            <input id="restName" type="text" maxlength="80" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-          </div>
-
-          <div>
-            <label class="text-xs font-bold text-slate-950">Identificador único en URL (Slug)</label>
-            <input id="restSlug" type="text" maxlength="60" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950 bg-slate-50" />
-            <p id="slugPreviewHint" class="text-[11px] text-slate-500 mt-1 truncate"></p>
-          </div>
-
-          <div>
-            <label class="text-xs font-bold text-slate-950">WhatsApp para pedidos (con 506)</label>
-            <input id="restWhatsapp" type="tel" maxlength="20" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-          </div>
-
-          <div>
-            <label class="text-xs font-bold text-slate-950">Ubicación / Horario</label>
-            <input id="restAddress" type="text" maxlength="140" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-          </div>
-
-          <div>
-            <label class="text-xs font-bold text-slate-950">Descripción corta</label>
-            <textarea id="restDesc" rows="2" maxlength="250" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950"></textarea>
-          </div>
-
-          <div class="flex items-center justify-between pt-1 border-t border-slate-100">
-            <label class="text-xs font-bold text-slate-950">Color de marca:</label>
-            <input id="restColor" type="color" value="#ea580c" class="w-10 h-8 rounded cursor-pointer border border-slate-300" />
-          </div>
-
-          <div class="space-y-2 pt-1 border-t border-slate-100">
-            <div class="flex items-center justify-between">
-              <label class="text-xs font-bold text-slate-950">Imagen Banner:</label>
-              <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                🖼️ Subir Banner
-                <input id="bannerFileInput" type="file" accept="image/*" class="hidden" />
-              </label>
-            </div>
-            <div id="bannerPreviewBox" class="hidden relative rounded-xl overflow-hidden border border-slate-300 h-24 bg-slate-900">
-              <img id="bannerPreviewImg" src="" alt="Banner" class="w-full h-full object-cover opacity-85" />
-              <button id="btnRemoveBanner" type="button" class="absolute top-1.5 right-1.5 bg-red-600 text-white text-xs px-2 py-0.5 rounded-lg font-bold shadow cursor-pointer">
-                Quitar
-              </button>
-            </div>
-          </div>
-
-          <!-- HERRAMIENTAS EXCLUSIVAS MASTER (ENVÍO EXPRESS) -->
-          <div class="pt-3 border-t border-slate-200 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold text-orange-600">🛵 Envío Express (Plan Master)</span>
-              <span id="lockExpressTag" class="bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded">🔒 MASTER</span>
-            </div>
-            <div id="expressFieldsBox" class="space-y-2">
-              <div>
-                <label class="text-[11px] font-bold text-slate-700">Tarifa de envío Express (₡) (0 = desactivado)</label>
-                <input id="restDeliveryFee" type="number" min="0" max="50000" step="100" placeholder="Ej. 1500" class="w-full mt-1 p-2 border border-slate-300 rounded-xl text-xs text-slate-950" />
-              </div>
-              <div>
-                <label class="text-[11px] font-bold text-slate-700">Zonas de cobertura</label>
-                <input id="restDeliveryZones" type="text" maxlength="100" placeholder="Ej. Centro, Barrio Los Ángeles, Moracia" class="w-full mt-1 p-2 border border-slate-300 rounded-xl text-xs text-slate-950" />
-              </div>
-            </div>
-          </div>
-
-          <!-- HERRAMIENTAS EXCLUSIVAS PRO VIP (SINPE MÓVIL INTEGRADO) -->
-          <div class="pt-3 border-t border-slate-200 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold text-amber-600">📲 SINPE Móvil Directo (Plan Pro VIP)</span>
-              <span id="lockSinpeTag" class="bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded">🔒 PRO VIP</span>
-            </div>
-            <div id="sinpeFieldsBox" class="space-y-2">
-              <div>
-                <label class="text-[11px] font-bold text-slate-700">Número SINPE Móvil (8 dígitos)</label>
-                <input id="restSinpePhone" type="tel" maxlength="12" placeholder="Ej. 8888-8888" class="w-full mt-1 p-2 border border-slate-300 rounded-xl text-xs text-slate-950" />
-              </div>
-              <div>
-                <label class="text-[11px] font-bold text-slate-700">Nombre del titular SINPE</label>
-                <input id="restSinpeOwner" type="text" maxlength="80" placeholder="Ej. Soda Secretos SRL" class="w-full mt-1 p-2 border border-slate-300 rounded-xl text-xs text-slate-950" />
-              </div>
-            </div>
-          </div>
-
-          <button id="btnSaveInfo" type="button" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition cursor-pointer">
-            Guardar Cambios en la Nube
-          </button>
-        </div>
-      </section>
-
-      <section class="md:col-span-2 space-y-6">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <h2 class="font-extrabold text-base text-slate-950">2. Galería del Restaurante</h2>
-              <p class="text-xs font-semibold text-slate-700">Optimización automática para carga rápida en móvil</p>
-            </div>
-            <label class="cursor-pointer bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0">
-              + Subir Fotos
-              <input id="galleryFileInput" type="file" multiple accept="image/*" class="hidden" />
-            </label>
-          </div>
-          <div id="adminGalleryGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-3"></div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <h2 class="font-extrabold text-base text-slate-950">3. Agregar Platillo al Menú</h2>
-          <div class="grid sm:grid-cols-3 gap-3">
-            <div>
-              <label class="text-xs font-bold text-slate-950">Nombre del platillo</label>
-              <input id="dishName" type="text" maxlength="80" placeholder="Ej. Casado con Pollo" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-            </div>
-            <div>
-              <label class="text-xs font-bold text-slate-950">Categoría</label>
-              <input id="dishCategory" type="text" maxlength="40" placeholder="Ej. Casados" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-            </div>
-            <div>
-              <label class="text-xs font-bold text-slate-950">Precio normal (₡)</label>
-              <input id="dishPrice" type="number" min="0" max="999999" step="50" placeholder="Ej. 3500" class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-            </div>
-          </div>
-
-          <div>
-            <label class="text-xs font-bold text-slate-950">Ingredientes o detalles del platillo</label>
-            <input id="dishDesc" type="text" maxlength="200" placeholder="Arroz, frijoles, ensalada, plátano maduro..." class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-sm text-slate-950" />
-          </div>
-
-          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
-            <div class="flex flex-wrap items-center gap-6">
-              <label class="flex items-center gap-2 text-xs font-extrabold text-orange-700 cursor-pointer">
-                <input id="dishIsPromo" type="checkbox" class="w-4 h-4 accent-orange-600 rounded" />
-                🔥 Activar Promoción / Oferta
-              </label>
-              <label class="flex items-center gap-2 text-xs font-extrabold text-red-700 cursor-pointer">
-                <input id="dishIsSoldOut" type="checkbox" class="w-4 h-4 accent-red-600 rounded" />
-                🚫 Marcar como Agotado hoy
-              </label>
-            </div>
-
-            <div id="promoFieldsBox" class="hidden grid sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-              <div>
-                <label class="text-xs font-bold text-slate-950">Etiqueta de promoción</label>
-                <input id="dishPromoLabel" type="text" maxlength="25" placeholder="Ej. 2x1 HOY, OFERTA, COMBO" class="w-full mt-1 p-2 border border-orange-300 bg-white rounded-xl text-xs text-slate-950" />
-              </div>
-              <div>
-                <label class="text-xs font-bold text-slate-950">Precio en oferta (₡) (opcional)</label>
-                <input id="dishPromoPrice" type="number" min="0" max="999999" step="50" placeholder="Ej. 2800" class="w-full mt-1 p-2 border border-orange-300 bg-white rounded-xl text-xs text-slate-950" />
-              </div>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <label class="text-xs text-slate-950 flex items-center gap-2 cursor-pointer bg-slate-100 px-3 py-2 rounded-xl font-bold">
-              📷 Foto del platillo:
-              <input id="dishImageInput" type="file" accept="image/*" class="text-xs max-w-[180px]" />
-            </label>
-            <button id="btnAddDish" type="button" class="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold transition cursor-pointer">
-              + Publicar Platillo
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-          <div class="flex items-center justify-between">
-            <h2 class="font-extrabold text-base text-slate-950">Platillos Publicados (<span id="dishCount">0</span>)</h2>
-            <span class="text-[11px] font-semibold text-slate-500">Clic en estado para cambiar al instante</span>
-          </div>
-          <div id="adminDishList" class="divide-y divide-slate-200"></div>
-        </div>
-      </section>
-    </main>
-  </div>
+  <footer class="text-center text-[11px] text-slate-500 py-6">
+    Plataforma SaaS por <strong>Farj Services</strong>
+  </footer>
 
   <script>
     (() => {
@@ -462,32 +102,18 @@
 
       const CFG = Object.freeze({
         u: atob('aHR0cHM6Ly9kYWJyaXZpdnJweXVseHFnY21pZy5zdXBhYmFzZS5jbw=='),
-        k: atob('c2JfcHVibGlzaGFibGVfeTk5cklfc3dod1ZSMVVUVFRUMHhiZ19ZLWZwMEZlZA=='),
-        wa: '50661182233'
+        k: atob('c2JfcHVibGlzaGFibGVfeTk5cklfc3dod1ZSMVVUVFRUMHhiZ19ZLWZwMEZlZA==')
       });
 
-      let sb = null;
-      let currentUser = null;
+      const sb = window.supabase.createClient(CFG.u, CFG.k);
+
       let restaurant = null;
       let dishes = [];
-      let authMode = 'login';
-      let initialRestName = '';
-      let justRegistered = false;
-      let toastTimer = null;
-
-      let vaultPin = '';
-      let vaultRestaurants = [];
-      let vaultFilter = 'ALL';
+      let cart = {};
+      let selectedCategory = 'ALL';
+      let deliveryMode = 'pickup'; // 'pickup' | 'express'
 
       const $ = (id) => document.getElementById(id);
-
-      function showToast(msg) {
-        const toast = $('toast');
-        toast.textContent = msg;
-        toast.classList.remove('hidden');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
-      }
 
       function escapeHtml(str) {
         if (!str) return '';
@@ -501,907 +127,317 @@
         return /^https:\/\/[a-z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\//i.test(url) ? url : '';
       }
 
-      function setWarning(msg) {
-        const box = $('envWarning');
-        box.textContent = msg;
-        box.classList.remove('hidden');
+      function safeColor(hex) {
+        return /^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ea580c';
       }
 
-      function isMasterOrPro() {
-        const p = (restaurant?.plan || 'basico').toLowerCase();
-        return p === 'master' || p === 'pro';
-      }
-
-      function isProVip() {
-        return (restaurant?.plan || 'basico').toLowerCase() === 'pro';
-      }
-
-      // ==================== GENERADOR DE KIT QR (BENEFICIO MASTER / PRO) ====================
-      function openQrModal() {
-        if (!isMasterOrPro()) {
-          showToast('🔒 El Kit QR de Mesa se desbloquea en Plan Master o Pro VIP');
-          openPlansModal();
-          return;
+      function getEffectivePrice(dish) {
+        if (dish.is_promo && dish.promo_price && Number(dish.promo_price) > 0) {
+          return Number(dish.promo_price);
         }
-        const url = getPublicMenuUrl(restaurant.slug);
-        $('qrRestTitle').textContent = restaurant.name || 'Mi Restaurante';
-        $('qrUrlLabel').textContent = url;
-        const box = $('qrCanvasBox');
-        box.innerHTML = '';
-        if (window.QRCode) {
-          new window.QRCode(box, {
-            text: url,
-            width: 210,
-            height: 210,
-            colorDark: '#0f172a',
-            colorLight: '#ffffff',
-            correctLevel: window.QRCode.CorrectLevel.H
-          });
+        return Math.max(0, Number(dish.price) || 0);
+      }
+
+      function detectSlugFromUrl() {
+        const paramSlug = new URLSearchParams(window.location.search).get('r');
+        if (paramSlug) return paramSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+        const cleanPath = window.location.pathname
+          .replace(/^\/+|\/+$/g, '')
+          .replace(/\.html$/i, '');
+        if (cleanPath && cleanPath !== 'index' && cleanPath !== 'admin') {
+          return cleanPath.toLowerCase().replace(/[^a-z0-9-]/g, '');
         }
-        $('qrModal').classList.remove('hidden');
+        return null;
       }
 
-      function downloadQrPng() {
-        const canvas = $('qrCanvasBox').querySelector('canvas');
-        if (!canvas) {
-          showToast('⚠️ No se pudo generar la imagen QR');
-          return;
-        }
-        const link = document.createElement('a');
-        link.download = `QR-Menu-${restaurant.slug || 'restaurante'}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        showToast('✅ Código QR descargado listo para imprimir');
+      function setDeliveryMode(mode) {
+        deliveryMode = mode;
+        const isExp = mode === 'express';
+        $('btnModePickup').className = !isExp
+          ? 'py-2.5 px-3 rounded-xl border-2 border-slate-900 bg-slate-900 text-white cursor-pointer'
+          : 'py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer';
+        $('btnModeExpress').className = isExp
+          ? 'py-2.5 px-3 rounded-xl border-2 border-orange-600 bg-orange-600 text-white cursor-pointer'
+          : 'py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer';
+        $('expressAddressField').classList.toggle('hidden', !isExp);
+        updateCartBar();
       }
 
-      // ==================== BÓVEDA CANDADO FARJ SERVICES ====================
-      async function unlockFarjVault() {
-        const entered = prompt('🔒 Ingresa el PIN Maestro de Farj Services:');
-        if (!entered) return;
-        vaultPin = entered.trim();
-        await loadVaultRestaurants();
-      }
-
-      function closeVaultModal() {
-        $('farjVaultModal').classList.add('hidden');
-        vaultPin = '';
-        vaultRestaurants = [];
-      }
-
-      function setVaultFilter(f) {
-        vaultFilter = f;
-        document.querySelectorAll('#vaultFilterBar button').forEach(btn => {
-          const active = btn.dataset.vfilter === f;
-          btn.className = active
-            ? 'px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 cursor-pointer'
-            : 'px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 cursor-pointer';
-        });
-        renderVaultList();
-      }
-
-      function getDaysRemaining(dateStr) {
-        if (!dateStr) return null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const exp = new Date(dateStr + 'T00:00:00');
-        return Math.round((exp - today) / (1000 * 60 * 60 * 24));
-      }
-
-      async function loadVaultRestaurants() {
-        const { data, error } = await sb.rpc('farj_get_all_restaurants', { p_pin: vaultPin });
-        if (error) {
-          vaultPin = '';
-          showToast('⛔ Acceso denegado: PIN incorrecto');
-          return;
-        }
-        vaultRestaurants = Array.isArray(data) ? data : [];
-        $('farjVaultModal').classList.remove('hidden');
-        updateVaultKPIs();
-        renderVaultList();
-      }
-
-      function updateVaultKPIs() {
-        const reqCount = vaultRestaurants.filter(r => r.requested_plan).length;
-        let overdueCount = 0;
-        let soonCount = 0;
-        let mrrCrc = 0;
-
-        vaultRestaurants.forEach(r => {
-          const plan = (r.plan || 'basico').toLowerCase();
-          const days = getDaysRemaining(r.plan_expires_at);
-          if (plan !== 'basico') {
-            if (r.is_active === false || (days !== null && days < 0)) overdueCount++;
-            else if (days !== null && days <= 5) soonCount++;
-
-            if (r.is_active !== false) {
-              if (plan === 'master') mrrCrc += 20000;
-              if (plan === 'pro') mrrCrc += 32800;
-            }
+      window.addEventListener('DOMContentLoaded', async () => {
+        $('searchInput').addEventListener('input', renderMenu);
+        $('btnSendWhatsapp').addEventListener('click', sendOrderToWhatsApp);
+        $('btnModePickup').addEventListener('click', () => setDeliveryMode('pickup'));
+        $('btnModeExpress').addEventListener('click', () => setDeliveryMode('express'));
+        $('btnCopySinpe').addEventListener('click', () => {
+          if (restaurant?.sinpe_phone) {
+            navigator.clipboard.writeText(restaurant.sinpe_phone);
+            $('btnCopySinpe').textContent = '✅ ¡Copiado!';
+            setTimeout(() => { $('btnCopySinpe').textContent = '📋 Copiar Número'; }, 2500);
           }
         });
 
-        $('vCountRequests').textContent = reqCount;
-        $('vCountOverdue').textContent = overdueCount;
-        $('vCountSoon').textContent = soonCount;
-        $('vMrrTotal').textContent = `₡${mrrCrc.toLocaleString('es-CR')}`;
-      }
-
-      async function runVaultAction(restId, action, targetPlan = 'basico') {
-        const { error } = await sb.rpc('farj_manage_subscription', {
-          p_pin: vaultPin,
-          p_restaurant_id: restId,
-          p_action: action,
-          p_plan: targetPlan
+        $('categoryPills').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-cat]');
+          if (btn) {
+            selectedCategory = btn.dataset.cat;
+            renderCategoryPills();
+            renderMenu();
+          }
         });
 
-        if (error) {
-          showToast('❌ ' + error.message);
+        $('pubMenuContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-cartid]');
+          if (btn) {
+            updateCart(btn.dataset.cartid, Number(btn.dataset.delta));
+          }
+        });
+
+        const slug = detectSlugFromUrl();
+        const { data: rows } = await sb.rpc('get_public_restaurant', { p_slug: slug });
+        const restData = Array.isArray(rows) ? rows[0] : rows;
+
+        if (!restData) {
+          $('searchAndFilterBox').classList.add('hidden');
+          $('pubName').textContent = 'Restaurante no encontrado';
+          $('pubDesc').textContent = 'Verifica el enlace compartido por el negocio.';
           return;
         }
 
-        const labels = {
-          approve: `✅ Pago verificado: Plan ${targetPlan.toUpperCase()} activo por 30 días`,
-          renew: '✅ Renovado por 30 días adicionales',
-          suspend: '🚫 Servicio cortado por falta de pago',
-          downgrade: '⬇️ Bajado a Plan Básico gratuito'
-        };
-        showToast(labels[action] || '✅ Actualizado');
-        await loadVaultRestaurants();
-        if (restaurant && restaurant.id === restId) {
-          await loadOrCreateRestaurant();
-        }
-      }
+        restaurant = restData;
 
-      function sendBillingWhatsApp(phone, restName, type, planName, days) {
-        const clean = String(phone || '').replace(/\D/g, '');
-        if (!clean) {
-          showToast('⚠️ Este restaurante no tiene teléfono registrado');
-          return;
-        }
-        let msg = '';
-        if (type === 'overdue') {
-          msg = `Hola *${restName}*, te saluda *Farj Services* 👋. Te recordamos que tu mensualidad del *Plan ${planName.toUpperCase()}* en MenúWeb SaaS venció hace ${Math.abs(days)} día(s). Envíanos tu comprobante SINPE Móvil al 6118-2233 para evitar la suspensión del menú.`;
-        } else if (type === 'soon') {
-          msg = `Hola *${restName}*, te saluda *Farj Services* 👋. Tu suscripción del *Plan ${planName.toUpperCase()}* vence en *${days} día(s)*. Puedes renovar vía SINPE Móvil al 6118-2233 para mantener tus beneficios activos.`;
-        } else {
-          msg = `Hola *${restName}*, te saluda *Farj Services* 👋. ¡Tu *Plan ${planName.toUpperCase()}* ya fue verificado y activado por 30 días en MenúWeb SaaS!`;
-        }
-        window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
-      }
-
-      function renderVaultList() {
-        const container = $('vaultListContainer');
-        const filtered = vaultRestaurants.filter(r => {
-          const plan = (r.plan || 'basico').toLowerCase();
-          const days = getDaysRemaining(r.plan_expires_at);
-          if (vaultFilter === 'REQUESTS') return !!r.requested_plan;
-          if (vaultFilter === 'DUE') return plan !== 'basico' && (r.is_active === false || (days !== null && days <= 5));
-          if (vaultFilter === 'PAID') return plan !== 'basico' && r.is_active !== false && (days === null || days > 5);
-          return true;
-        });
-
-        if (!filtered.length) {
-          container.innerHTML = `<p class="text-center text-xs text-slate-400 py-8 border border-dashed border-slate-700 rounded-2xl">No hay restaurantes en esta categoría.</p>`;
-          return;
-        }
-
-        container.innerHTML = filtered.map(r => {
-          const plan = (r.plan || 'basico').toLowerCase();
-          const days = getDaysRemaining(r.plan_expires_at);
-          const suspended = r.is_active === false;
-
-          let statusBadge = `<span class="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded">PLAN BÁSICO</span>`;
-          let alertType = 'ok';
-
-          if (suspended) {
-            statusBadge = `<span class="bg-red-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded">🚫 SERVICIO CORTADO</span>`;
-            alertType = 'overdue';
-          } else if (plan !== 'basico' && days !== null) {
-            if (days < 0) {
-              statusBadge = `<span class="bg-red-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded">🚨 VENCIDO HACE ${Math.abs(days)} DÍAS</span>`;
-              alertType = 'overdue';
-            } else if (days <= 5) {
-              statusBadge = `<span class="bg-orange-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded">⏳ VENCE EN ${days} DÍAS (${escapeHtml(r.plan_expires_at)})</span>`;
-              alertType = 'soon';
-            } else {
-              statusBadge = `<span class="bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded">✅ AL DÍA • VENCE ${escapeHtml(r.plan_expires_at)} (${days}d)</span>`;
-            }
-          }
-
-          return `
-            <div class="bg-slate-950 border ${r.requested_plan ? 'border-amber-400' : 'border-slate-800'} rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
-              <div class="space-y-1 min-w-[220px]">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h4 class="font-extrabold text-sm text-white">${escapeHtml(r.name)}</h4>
-                  <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${plan === 'pro' ? 'bg-amber-400 text-slate-950' : (plan === 'master' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-200')}">
-                    ${escapeHtml(plan)}
-                  </span>
-                  ${statusBadge}
-                </div>
-                <p class="text-[11px] text-slate-400">
-                  📞 ${escapeHtml(r.whatsapp || 'Sin teléfono')} • 📧 ${escapeHtml(r.owner_email || 'Sin correo')} • 🔗 /${escapeHtml(r.slug)}
-                </p>
-                ${r.requested_plan ? `
-                  <div class="inline-block mt-1 bg-amber-400/20 border border-amber-400 text-amber-300 text-[11px] font-extrabold px-2.5 py-1 rounded-lg">
-                    🔔 SOLICITÓ ACTIVAR PLAN ${escapeHtml(r.requested_plan.toUpperCase())} (Verificar SINPE)
-                  </div>
-                ` : ''}
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2">
-                ${r.requested_plan ? `
-                  <button type="button" data-vact="approve" data-rid="${escapeHtml(r.id)}" data-plan="${escapeHtml(r.requested_plan)}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold px-3 py-2 rounded-xl cursor-pointer">
-                    ✅ Confirmar Pago (${escapeHtml(r.requested_plan.toUpperCase())})
-                  </button>
-                ` : ''}
-                <button type="button" data-vact="approve" data-rid="${escapeHtml(r.id)}" data-plan="master" class="bg-orange-600/20 hover:bg-orange-600 border border-orange-500 text-orange-300 hover:text-white text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                  Activar Master
-                </button>
-                <button type="button" data-vact="approve" data-rid="${escapeHtml(r.id)}" data-plan="pro" class="bg-amber-400/20 hover:bg-amber-400 border border-amber-400 text-amber-300 hover:text-slate-950 text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                  Activar Pro
-                </button>
-                ${plan !== 'basico' ? `
-                  <button type="button" data-vact="renew" data-rid="${escapeHtml(r.id)}" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                    +30 Días
-                  </button>
-                ` : ''}
-                <button type="button" data-vwa="1" data-phone="${escapeHtml(r.whatsapp || '')}" data-rname="${escapeHtml(r.name)}" data-atype="${alertType}" data-plan="${escapeHtml(plan)}" data-days="${days ?? 0}" class="bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                  💬 Cobrar / Avisar
-                </button>
-                ${!suspended ? `
-                  <button type="button" data-vact="suspend" data-rid="${escapeHtml(r.id)}" class="bg-red-950 hover:bg-red-600 border border-red-700 text-red-200 hover:text-white text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                    🚫 Cortar Servicio
-                  </button>
-                ` : `
-                  <button type="button" data-vact="renew" data-rid="${escapeHtml(r.id)}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-xl cursor-pointer">
-                    🟢 Reconectar
-                  </button>
-                `}
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      // ==================== PLANES DEL RESTAURANTE ====================
-      function openPlansModal() {
-        const plan = (restaurant?.plan || 'basico').toLowerCase();
-        $('badgePlanBasico').textContent = plan === 'basico' ? 'TU PLAN ACTUAL' : 'GRATIS';
-        $('badgePlanMaster').textContent = plan === 'master' ? 'TU PLAN ACTUAL' : 'MÁS ELEGIDO';
-        $('badgePlanPro').textContent = plan === 'pro' ? 'TU PLAN ACTUAL' : 'IMPACTO TOTAL';
-        $('plansModal').classList.remove('hidden');
-      }
-
-      function closePlansModal() {
-        $('plansModal').classList.add('hidden');
-      }
-
-      async function requestPlanUpgrade(planKey, priceText) {
-        if (!['master', 'pro'].includes(planKey)) return;
-        if (restaurant?.id) {
-          await sb
-            .from('menu_restaurants')
-            .update({ requested_plan: planKey, owner_email: currentUser?.email || '' })
-            .eq('id', restaurant.id);
-          restaurant.requested_plan = planKey;
-          syncInputs();
-        }
-        const restTitle = restaurant?.name || 'Mi Restaurante';
-        const label = planKey === 'pro' ? 'Pro VIP' : 'Master';
-        const msg = `Hola *Farj Services*, acabo de solicitar el *Plan ${label}* (${priceText}) para mi restaurante *${restTitle}* (${currentUser?.email || ''}). Confírmame el SINPE Móvil al 6118-2233 para enviar el comprobante.`;
-        window.open(`https://wa.me/${CFG.wa}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
-        closePlansModal();
-        showToast('🔔 Solicitud enviada a Farj Services');
-      }
-
-      function getPublicMenuUrl(slug) {
-        if (window.location.protocol === 'file:') {
-          return `${window.location.href.replace(/[^/]*$/, 'index.html')}?r=${encodeURIComponent(slug)}`;
-        }
-        return `${window.location.origin}/?r=${encodeURIComponent(slug)}`;
-      }
-
-      function compressImageFile(file, maxWidth = 1200, quality = 0.8) {
-        return new Promise((resolve) => {
-          if (!file || !file.type.startsWith('image/')) {
-            resolve(null);
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-              let width = img.width;
-              let height = img.height;
-              if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
-              }
-              const canvas = document.createElement('canvas');
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, width, height);
-              canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality);
-            };
-            img.onerror = () => resolve(null);
-            img.src = e.target.result;
-          };
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(file);
-        });
-      }
-
-      function setAuthMode(mode) {
-        authMode = mode;
-        const isReg = mode === 'register';
-        $('registerNameBox').classList.toggle('hidden', !isReg);
-        $('btnSubmitAuth').textContent = isReg
-          ? 'Crear Cuenta y Ver Planes →'
-          : 'Entrar al Panel →';
-
-        $('tabLogin').className = !isReg
-          ? 'py-2.5 rounded-lg bg-orange-600 text-white transition cursor-pointer'
-          : 'py-2.5 rounded-lg text-slate-300 hover:text-white transition cursor-pointer';
-        $('tabRegister').className = isReg
-          ? 'py-2.5 rounded-lg bg-emerald-600 text-white transition cursor-pointer'
-          : 'py-2.5 rounded-lg text-slate-300 hover:text-white transition cursor-pointer';
-        $('btnSubmitAuth').className = isReg
-          ? 'w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white rounded-xl font-extrabold text-sm transition cursor-pointer shadow-lg'
-          : 'w-full py-3.5 bg-orange-600 hover:bg-orange-500 active:scale-[0.99] text-white rounded-xl font-extrabold text-sm transition cursor-pointer shadow-lg';
-      }
-
-      // ==================== INICIALIZACIÓN ====================
-      window.addEventListener('DOMContentLoaded', () => {
-        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-          setWarning('❌ No se pudo cargar el servicio en la nube. Revisa tu conexión.');
-          return;
-        }
-
-        sb = window.supabase.createClient(CFG.u, CFG.k);
-        $('authStatusLine').textContent = '🟢 Conexión segura • Listo para entrar';
-
-        $('tabLogin').addEventListener('click', () => setAuthMode('login'));
-        $('tabRegister').addEventListener('click', () => setAuthMode('register'));
-        $('authForm').addEventListener('submit', handleAuthSubmit);
-
-        $('btnOpenQr').addEventListener('click', openQrModal);
-        $('btnDownloadQr').addEventListener('click', downloadQrPng);
-        $('btnCloseQr').addEventListener('click', () => $('qrModal').classList.add('hidden'));
-
-        $('btnUnlockAuth').addEventListener('click', unlockFarjVault);
-        $('btnUnlockNav').addEventListener('click', unlockFarjVault);
-        $('btnRefreshVault').addEventListener('click', loadVaultRestaurants);
-        $('btnCloseVault').addEventListener('click', closeVaultModal);
-
-        $('vaultFilterBar').addEventListener('click', (e) => {
-          const btn = e.target.closest('[data-vfilter]');
-          if (btn) setVaultFilter(btn.dataset.vfilter);
-        });
-
-        $('vaultListContainer').addEventListener('click', (e) => {
-          const actBtn = e.target.closest('[data-vact]');
-          if (actBtn) {
-            runVaultAction(actBtn.dataset.rid, actBtn.dataset.vact, actBtn.dataset.plan || 'basico');
-            return;
-          }
-          const waBtn = e.target.closest('[data-vwa]');
-          if (waBtn) {
-            sendBillingWhatsApp(
-              waBtn.dataset.phone,
-              waBtn.dataset.rname,
-              waBtn.dataset.atype,
-              waBtn.dataset.plan,
-              Number(waBtn.dataset.days)
-            );
-          }
-        });
-
-        $('btnClosePlans').addEventListener('click', closePlansModal);
-        $('btnKeepBasico').addEventListener('click', closePlansModal);
-        $('btnOpenPlansNav').addEventListener('click', openPlansModal);
-        $('btnUpgradeCard').addEventListener('click', openPlansModal);
-
-        $('plansModal').addEventListener('click', (e) => {
-          const upBtn = e.target.closest('[data-upgrade]');
-          if (upBtn) requestPlanUpgrade(upBtn.dataset.upgrade, upBtn.dataset.price);
-        });
-
-        $('btnCopyLink').addEventListener('click', copyPublicMenuUrl);
-        $('btnLogout').addEventListener('click', logoutUser);
-        $('bannerFileInput').addEventListener('change', handleBannerUpload);
-        $('btnRemoveBanner').addEventListener('click', removeBanner);
-        $('btnSaveInfo').addEventListener('click', saveRestaurantInfo);
-        $('galleryFileInput').addEventListener('change', handleGalleryUpload);
-        $('btnAddDish').addEventListener('click', addDish);
-
-        $('adminGalleryGrid').addEventListener('click', (e) => {
-          const delImgBtn = e.target.closest('[data-delgal]');
-          if (delImgBtn) removeGalleryImage(Number(delImgBtn.dataset.delgal));
-        });
-
-        $('adminDishList').addEventListener('click', (e) => {
-          const promoBtn = e.target.closest('[data-tpromo]');
-          if (promoBtn) {
-            toggleDishPromo(promoBtn.dataset.tpromo, promoBtn.dataset.state === '1');
-            return;
-          }
-          const soldBtn = e.target.closest('[data-tsold]');
-          if (soldBtn) {
-            toggleDishSoldOut(soldBtn.dataset.tsold, soldBtn.dataset.state === '1');
-            return;
-          }
-          const delBtn = e.target.closest('[data-deldish]');
-          if (delBtn) deleteDish(delBtn.dataset.deldish);
-        });
-
-        $('dishIsPromo').addEventListener('change', (e) => {
-          $('promoFieldsBox').classList.toggle('hidden', !e.target.checked);
-        });
-
-        sb.auth.onAuthStateChange(async (_event, session) => {
-          if (session?.user) {
-            currentUser = session.user;
-            $('authScreen').classList.add('hidden');
-            $('dashboardScreen').classList.remove('hidden');
-            $('navUserEmail').textContent = currentUser.email || 'Mi Restaurante';
-            await loadOrCreateRestaurant();
-          } else {
-            currentUser = null;
-            restaurant = null;
-            $('authScreen').classList.remove('hidden');
-            $('dashboardScreen').classList.add('hidden');
-          }
-        });
-      });
-
-      async function handleAuthSubmit(e) {
-        e.preventDefault();
-        const email = $('authEmailInput').value.trim();
-        const password = $('authPassInput').value;
-        const btn = $('btnSubmitAuth');
-
-        btn.disabled = true;
-        btn.textContent = 'Procesando...';
-
-        try {
-          if (authMode === 'register') {
-            initialRestName = $('regRestName').value.trim() || 'Mi Restaurante';
-            justRegistered = true;
-            const { data, error } = await sb.auth.signUp({ email, password });
-            if (error) {
-              justRegistered = false;
-              setWarning('❌ ' + error.message);
-            } else if (!data.session) {
-              setWarning('⚠️ Registro deshabilitado o requiere confirmación.');
-            } else {
-              showToast('✅ ¡Cuenta creada! Bienvenido a Farj Services');
-            }
-          } else {
-            const { error } = await sb.auth.signInWithPassword({ email, password });
-            if (error) {
-              setWarning('❌ ' + error.message);
-            } else {
-              showToast('✅ Sesión iniciada');
-            }
-          }
-        } catch (err) {
-          setWarning('❌ Error: ' + err.message);
-        } finally {
-          btn.disabled = false;
-          setAuthMode(authMode);
-        }
-      }
-
-      async function logoutUser() {
-        await sb.auth.signOut();
-        window.location.reload();
-      }
-
-      async function loadOrCreateRestaurant() {
-        let { data } = await sb
-          .from('menu_restaurants')
-          .select('*')
-          .eq('owner_id', currentUser.id)
-          .maybeSingle();
-
-        if (!data) {
-          const baseName = initialRestName || 'Mi Restaurante';
-          const slugBase = baseName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'menu';
-          const defaultSlug = `${slugBase}-${currentUser.id.slice(0, 5)}`;
-
-          const created = await sb
-            .from('menu_restaurants')
-            .insert({
-              owner_id: currentUser.id,
-              owner_email: currentUser.email || '',
-              slug: defaultSlug,
-              name: baseName,
-              whatsapp: '50661182233',
-              plan: 'basico'
-            })
-            .select()
-            .single();
-          data = created.data;
-          justRegistered = true;
-        } else if (!data.owner_email && currentUser.email) {
-          await sb.from('menu_restaurants').update({ owner_email: currentUser.email }).eq('id', data.id);
-          data.owner_email = currentUser.email;
-        }
-
-        restaurant = data;
-        syncInputs();
-        await loadDishes();
-
-        if (justRegistered) {
-          justRegistered = false;
-          openPlansModal();
-        }
-      }
-
-      function syncInputs() {
-        if (!restaurant) return;
-        $('restName').value = restaurant.name || '';
-        $('restSlug').value = restaurant.slug || '';
-        $('restWhatsapp').value = restaurant.whatsapp || '';
-        $('restAddress').value = restaurant.address || '';
-        $('restDesc').value = restaurant.description || '';
-        $('restColor').value = restaurant.color || '#ea580c';
-
-        $('restDeliveryFee').value = restaurant.delivery_fee || 0;
-        $('restDeliveryZones').value = restaurant.delivery_zones || '';
-        $('restSinpePhone').value = restaurant.sinpe_phone || '';
-        $('restSinpeOwner').value = restaurant.sinpe_owner || '';
-
-        const masterUnlocked = isMasterOrPro();
-        const proUnlocked = isProVip();
-
-        $('lockExpressTag').textContent = masterUnlocked ? '✅ ACTIVO' : '🔒 MASTER';
-        $('lockExpressTag').className = masterUnlocked
-          ? 'bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded'
-          : 'bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded';
-        $('restDeliveryFee').disabled = !masterUnlocked;
-        $('restDeliveryZones').disabled = !masterUnlocked;
-        $('expressFieldsBox').classList.toggle('opacity-50', !masterUnlocked);
-
-        $('lockSinpeTag').textContent = proUnlocked ? '✅ ACTIVO' : '🔒 PRO VIP';
-        $('lockSinpeTag').className = proUnlocked
-          ? 'bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded'
-          : 'bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded';
-        $('restSinpePhone').disabled = !proUnlocked;
-        $('restSinpeOwner').disabled = !proUnlocked;
-        $('sinpeFieldsBox').classList.toggle('opacity-50', !proUnlocked);
-
-        const planLabelMap = {
-          basico: 'Plan Básico (Gratis)',
-          master: 'Plan Master (₡20,000)',
-          pro: 'Plan Pro VIP (₡32,800)'
-        };
-        const currentPlan = (restaurant.plan || 'basico').toLowerCase();
-        $('currentPlanBadge').textContent = currentPlan.toUpperCase();
-        $('cardPlanName').textContent = planLabelMap[currentPlan] || 'Plan Básico (Gratis)';
-        $('cardPlanExpiry').textContent = restaurant.plan_expires_at
-          ? `Vence el: ${restaurant.plan_expires_at}`
-          : 'Sin fecha de corte';
-
-        const alertBanner = $('serviceAlertBanner');
         if (restaurant.is_active === false) {
-          alertBanner.innerHTML = `<div class="bg-red-600 text-white text-xs font-extrabold p-3.5 rounded-2xl shadow">🚫 TU SERVICIO ESTÁ SUSPENDIDO POR MENSUALIDAD VENCIDA. Contacta a Farj Services (6118-2233) para reconectarlo.</div>`;
-          alertBanner.classList.remove('hidden');
-        } else if (restaurant.requested_plan) {
-          alertBanner.innerHTML = `<div class="bg-amber-400 text-slate-950 text-xs font-extrabold p-3.5 rounded-2xl shadow">⏳ Solicitud pendiente: Plan ${escapeHtml(restaurant.requested_plan.toUpperCase())}. En cuanto Farj Services verifique tu SINPE Móvil se activará.</div>`;
-          alertBanner.classList.remove('hidden');
-        } else {
-          alertBanner.classList.add('hidden');
-        }
-
-        const publicUrl = getPublicMenuUrl(restaurant.slug);
-        $('btnOpenPublicMenu').href = publicUrl;
-        $('slugPreviewHint').textContent = publicUrl;
-
-        const box = $('bannerPreviewBox');
-        const img = $('bannerPreviewImg');
-        const safeBanner = sanitizeImgUrl(restaurant.banner_url);
-        if (safeBanner) {
-          img.src = safeBanner;
-          box.classList.remove('hidden');
-        } else {
-          box.classList.add('hidden');
-        }
-        renderGallery();
-      }
-
-      async function uploadImageToStorage(file, folder) {
-        if (!file || file.size > 15 * 1024 * 1024) throw new Error('Archivo inválido o mayor a 15MB');
-        const compressedBlob = await compressImageFile(file, 1200, 0.8);
-        if (!compressedBlob) throw new Error('Formato de imagen no soportado');
-        const path = `${currentUser.id}/${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-        const { error } = await sb.storage.from('menu-media').upload(path, compressedBlob, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
-        if (error) throw error;
-        const { data } = sb.storage.from('menu-media').getPublicUrl(path);
-        return data.publicUrl;
-      }
-
-      async function deleteFileFromStorageByUrl(publicUrl) {
-        try {
-          const marker = '/object/public/menu-media/';
-          const idx = publicUrl.indexOf(marker);
-          if (idx !== -1) {
-            const storagePath = decodeURIComponent(publicUrl.slice(idx + marker.length));
-            await sb.storage.from('menu-media').remove([storagePath]);
-          }
-        } catch (e) {}
-      }
-
-      async function handleBannerUpload(event) {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        try {
-          showToast('⏳ Optimizando y subiendo banner...');
-          if (restaurant.banner_url) await deleteFileFromStorageByUrl(restaurant.banner_url);
-          const url = await uploadImageToStorage(file, 'banners');
-          await sb.from('menu_restaurants').update({ banner_url: url }).eq('id', restaurant.id);
-          restaurant.banner_url = url;
-          syncInputs();
-          showToast('🖼️ Banner actualizado');
-        } catch (e) {
-          showToast('❌ Error subiendo banner');
-        }
-      }
-
-      async function removeBanner() {
-        if (restaurant.banner_url) await deleteFileFromStorageByUrl(restaurant.banner_url);
-        await sb.from('menu_restaurants').update({ banner_url: '' }).eq('id', restaurant.id);
-        restaurant.banner_url = '';
-        syncInputs();
-        showToast('🗑️ Banner eliminado');
-      }
-
-      async function saveRestaurantInfo() {
-        const slugClean = $('restSlug').value
-          .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '');
-
-        const updates = {
-          name: $('restName').value.trim().slice(0, 80) || 'Mi Restaurante',
-          slug: slugClean || restaurant.slug,
-          whatsapp: $('restWhatsapp').value.replace(/\D/g, '').slice(0, 15),
-          address: $('restAddress').value.trim().slice(0, 140),
-          description: $('restDesc').value.trim().slice(0, 250),
-          color: /^#[0-9a-f]{6}$/i.test($('restColor').value) ? $('restColor').value : '#ea580c'
-        };
-
-        if (isMasterOrPro()) {
-          updates.delivery_fee = Math.max(0, parseFloat($('restDeliveryFee').value) || 0);
-          updates.delivery_zones = $('restDeliveryZones').value.trim().slice(0, 100);
-        }
-
-        if (isProVip()) {
-          updates.sinpe_phone = $('restSinpePhone').value.replace(/\D/g, '').slice(0, 8);
-          updates.sinpe_owner = $('restSinpeOwner').value.trim().slice(0, 80);
-        }
-
-        const { error } = await sb.from('menu_restaurants').update(updates).eq('id', restaurant.id);
-        if (error) {
-          showToast('❌ Ese identificador URL ya está en uso, prueba otro');
-          return;
-        }
-        Object.assign(restaurant, updates);
-        syncInputs();
-        showToast('✅ Datos guardados en la nube');
-      }
-
-      async function handleGalleryUpload(event) {
-        const files = Array.from(event.target.files || []).slice(0, 10);
-        if (!files.length) return;
-        showToast('⏳ Optimizando y subiendo fotos...');
-        const newGallery = [...(restaurant.gallery || [])];
-        for (const file of files) {
-          try {
-            const url = await uploadImageToStorage(file, 'gallery');
-            newGallery.push(url);
-          } catch (e) {}
-        }
-        await sb.from('menu_restaurants').update({ gallery: newGallery }).eq('id', restaurant.id);
-        restaurant.gallery = newGallery;
-        renderGallery();
-        showToast('✅ Galería actualizada');
-      }
-
-      async function removeGalleryImage(index) {
-        const targetUrl = restaurant.gallery?.[index];
-        if (targetUrl) await deleteFileFromStorageByUrl(targetUrl);
-        const newGallery = (restaurant.gallery || []).filter((_, i) => i !== index);
-        await sb.from('menu_restaurants').update({ gallery: newGallery }).eq('id', restaurant.id);
-        restaurant.gallery = newGallery;
-        renderGallery();
-        showToast('🗑️ Foto eliminada');
-      }
-
-      function renderGallery() {
-        const grid = $('adminGalleryGrid');
-        const list = restaurant.gallery || [];
-        if (!list.length) {
-          grid.innerHTML = `<p class="col-span-full text-xs font-medium text-slate-600 py-4 text-center border border-dashed border-slate-300 rounded-xl">Sin fotos en galería.</p>`;
-          return;
-        }
-        grid.innerHTML = list.map((img, i) => {
-          const safeSrc = sanitizeImgUrl(img);
-          return `
-            <div class="relative rounded-xl overflow-hidden border border-slate-300 h-24 bg-slate-100">
-              <img src="${safeSrc}" class="w-full h-full object-cover" />
-              <button type="button" data-delgal="${i}" class="absolute top-1 right-1 bg-red-600 text-white text-xs w-6 h-6 rounded-full shadow font-bold cursor-pointer">×</button>
+          document.title = `${restaurant.name} | Servicio Suspendido`;
+          $('pubHeader').style.backgroundColor = '#0f172a';
+          $('pubName').textContent = restaurant.name;
+          $('pubDesc').textContent = 'Este menú digital se encuentra temporalmente suspendido.';
+          $('searchAndFilterBox').classList.add('hidden');
+          $('pubMenuContainer').innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center space-y-2 shadow-sm">
+              <p class="text-base font-extrabold">⚠️ Menú Temporalmente Suspendido</p>
+              <p class="text-xs font-medium text-red-600">Si eres el propietario de este establecimiento, contacta a soporte de <strong>Farj Services</strong> para reactivar el servicio.</p>
             </div>
           `;
-        }).join('');
-      }
+          return;
+        }
 
-      async function loadDishes() {
-        const { data } = await sb
+        // Configurar bloques exclusivos Master/Pro si están activos en este restaurante
+        const fee = Number(restaurant.delivery_fee) || 0;
+        if (fee > 0) {
+          $('expressSelectorBox').classList.remove('hidden');
+          $('expressFeeBtnLabel').textContent = `₡${fee.toLocaleString('es-CR')}`;
+          if (restaurant.delivery_zones) {
+            $('expressZonesHint').textContent = `📍 Cobertura Express: ${restaurant.delivery_zones}`;
+          }
+        }
+        if (restaurant.sinpe_phone) {
+          $('sinpeInfoBox').classList.remove('hidden');
+          $('sinpePhoneDisplay').textContent = restaurant.sinpe_phone;
+          $('sinpeOwnerDisplay').textContent = restaurant.sinpe_owner ? `Titular: ${restaurant.sinpe_owner}` : '';
+        }
+
+        const { data: dishData } = await sb
           .from('menu_dishes')
-          .select('*')
+          .select('id, name, category, price, description, image_url, is_sold_out, is_promo, promo_label, promo_price')
           .eq('restaurant_id', restaurant.id)
           .order('created_at', { ascending: false });
-        dishes = data || [];
-        renderDishes();
-      }
 
-      async function addDish() {
-        const plan = (restaurant?.plan || 'basico').toLowerCase();
-        if (plan === 'basico' && dishes.length >= 15) {
-          showToast('⚠️ Límite de 15 platillos alcanzado en Plan Básico');
-          openPlansModal();
+        dishes = dishData || [];
+        renderCategoryPills();
+        renderMenu();
+      });
+
+      function renderCategoryPills() {
+        const pillsBox = $('categoryPills');
+        const categories = [...new Set(dishes.map(d => d.category))];
+        if (categories.length <= 1) {
+          pillsBox.innerHTML = '';
           return;
         }
-
-        const name = $('dishName').value.trim().slice(0, 80);
-        const category = $('dishCategory').value.trim().slice(0, 40) || 'Especialidades';
-        const price = parseFloat($('dishPrice').value);
-        const description = $('dishDesc').value.trim().slice(0, 200);
-        const is_promo = $('dishIsPromo').checked;
-        const is_sold_out = $('dishIsSoldOut').checked;
-        const promo_label = is_promo ? ($('dishPromoLabel').value.trim().slice(0, 25) || 'OFERTA') : '';
-        const rawPromoPrice = parseFloat($('dishPromoPrice').value);
-        const promo_price = (is_promo && !isNaN(rawPromoPrice) && rawPromoPrice > 0) ? rawPromoPrice : null;
-        const fileInput = $('dishImageInput');
-
-        if (!name || isNaN(price) || price < 0) {
-          showToast('⚠️ Ingresa nombre y precio válido');
-          return;
-        }
-
-        const btn = $('btnAddDish');
-        btn.disabled = true;
-        btn.textContent = 'Publicando...';
-
-        try {
-          let image_url = '';
-          if (fileInput.files?.[0]) {
-            showToast('⏳ Optimizando foto del platillo...');
-            try { image_url = await uploadImageToStorage(fileInput.files[0], 'dishes'); } catch (e) {}
-          }
-
-          const { error } = await sb.from('menu_dishes').insert({
-            restaurant_id: restaurant.id,
-            name,
-            category,
-            price,
-            description,
-            image_url,
-            is_promo,
-            is_sold_out,
-            promo_label,
-            promo_price
-          });
-
-          if (error) {
-            showToast('❌ ' + error.message);
-            return;
-          }
-
-          $('dishName').value = '';
-          $('dishPrice').value = '';
-          $('dishDesc').value = '';
-          $('dishIsPromo').checked = false;
-          $('dishIsSoldOut').checked = false;
-          $('dishPromoLabel').value = '';
-          $('dishPromoPrice').value = '';
-          $('promoFieldsBox').classList.add('hidden');
-          fileInput.value = '';
-          await loadDishes();
-          showToast('✅ Platillo publicado');
-        } finally {
-          btn.disabled = false;
-          btn.textContent = '+ Publicar Platillo';
-        }
-      }
-
-      async function toggleDishSoldOut(id, currentState) {
-        const nextState = !currentState;
-        const { error } = await sb.from('menu_dishes').update({ is_sold_out: nextState }).eq('id', id).eq('restaurant_id', restaurant.id);
-        if (!error) {
-          await loadDishes();
-          showToast(nextState ? '🚫 Marcado como AGOTADO' : '✅ Disponible nuevamente');
-        }
-      }
-
-      async function toggleDishPromo(id, currentState) {
-        const nextState = !currentState;
-        const updates = {
-          is_promo: nextState,
-          promo_label: nextState ? 'PROMO' : ''
-        };
-        const { error } = await sb.from('menu_dishes').update(updates).eq('id', id).eq('restaurant_id', restaurant.id);
-        if (!error) {
-          await loadDishes();
-          showToast(nextState ? '🔥 Promoción activada' : 'Promoción desactivada');
-        }
-      }
-
-      async function deleteDish(id) {
-        const target = dishes.find(d => d.id === id);
-        if (target?.image_url) await deleteFileFromStorageByUrl(target.image_url);
-        await sb.from('menu_dishes').delete().eq('id', id).eq('restaurant_id', restaurant.id);
-        await loadDishes();
-        showToast('🗑️ Platillo eliminado');
-      }
-
-      function renderDishes() {
-        $('dishCount').textContent = dishes.length;
-        const list = $('adminDishList');
-        if (!dishes.length) {
-          list.innerHTML = `<p class="text-xs font-medium text-slate-600 py-6 text-center">No hay platillos registrados.</p>`;
-          return;
-        }
-        list.innerHTML = dishes.map(d => {
-          const safeImg = sanitizeImgUrl(d.image_url);
+        const brandColor = safeColor(restaurant?.color);
+        const allCats = ['ALL', ...categories];
+        pillsBox.innerHTML = allCats.map(cat => {
+          const active = selectedCategory === cat;
+          const label = cat === 'ALL' ? 'Todos' : escapeHtml(cat);
           return `
-            <div class="py-3.5 flex flex-wrap items-center justify-between gap-3 ${d.is_sold_out ? 'opacity-65' : ''}">
-              <div class="flex items-center gap-3 min-w-0 flex-1">
-                ${safeImg
-                  ? `<img src="${safeImg}" class="w-14 h-14 rounded-xl object-cover border shrink-0 ${d.is_sold_out ? 'grayscale' : ''}" />`
-                  : `<div class="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center text-lg shrink-0">🍽️</div>`
-                }
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-1.5">
-                    <span class="text-[10px] font-extrabold uppercase text-orange-600">${escapeHtml(d.category)}</span>
-                    ${d.is_promo ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">🔥 ${escapeHtml(d.promo_label || 'PROMO')}</span>` : ''}
-                    ${d.is_sold_out ? `<span class="bg-red-100 text-red-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">🚫 AGOTADO</span>` : ''}
-                  </div>
-                  <h4 class="font-bold text-sm text-slate-950 truncate">${escapeHtml(d.name)}</h4>
-                  <p class="text-xs font-bold text-slate-700">
-                    ${d.is_promo && d.promo_price
-                      ? `<span class="line-through text-slate-400 mr-1">₡${Number(d.price).toLocaleString('es-CR')}</span> <span class="text-emerald-700 font-extrabold">₡${Number(d.promo_price).toLocaleString('es-CR')}</span>`
-                      : `₡${Number(d.price).toLocaleString('es-CR')}`
-                    }
-                  </p>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" data-tpromo="${escapeHtml(d.id)}" data-state="${d.is_promo ? '1' : '0'}" class="text-[11px] px-2.5 py-1.5 rounded-lg font-bold border transition cursor-pointer ${d.is_promo ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-amber-50'}">
-                  🔥 Promo
-                </button>
-                <button type="button" data-tsold="${escapeHtml(d.id)}" data-state="${d.is_sold_out ? '1' : '0'}" class="text-[11px] px-2.5 py-1.5 rounded-lg font-bold border transition cursor-pointer ${d.is_sold_out ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-red-50'}">
-                  ${d.is_sold_out ? '🚫 Agotado' : 'Disponible'}
-                </button>
-                <button type="button" data-deldish="${escapeHtml(d.id)}" class="text-[11px] text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg font-bold cursor-pointer">
-                  Eliminar
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              data-cat="${escapeHtml(cat)}"
+              style="${active ? `background-color: ${brandColor}; color: #fff; border-color: ${brandColor};` : ''}"
+              class="px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition cursor-pointer ${active ? 'shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'}"
+            >
+              ${label}
+            </button>
           `;
         }).join('');
       }
 
-      function copyPublicMenuUrl() {
-        if (!restaurant) return;
-        const url = getPublicMenuUrl(restaurant.slug);
-        navigator.clipboard.writeText(url);
-        showToast('🔗 Link público copiado');
+      function renderMenu() {
+        if (!restaurant || restaurant.is_active === false) return;
+        const brandColor = safeColor(restaurant.color);
+        document.title = `${restaurant.name} | Menú Digital`;
+        $('pubHeader').style.backgroundColor = brandColor;
+        $('btnSendWhatsapp').style.backgroundColor = brandColor;
+        $('pubName').textContent = restaurant.name;
+        $('pubDesc').textContent = restaurant.description || '';
+        $('pubAddress').textContent = restaurant.address ? `📍 ${restaurant.address}` : '';
+
+        const bannerImg = $('pubBannerImg');
+        const bannerOverlay = $('pubBannerOverlay');
+        const safeBanner = sanitizeImgUrl(restaurant.banner_url);
+        if (safeBanner) {
+          bannerImg.src = safeBanner;
+          bannerImg.classList.remove('hidden');
+          bannerOverlay.classList.remove('hidden');
+        }
+
+        const galSection = $('pubGallerySection');
+        const galList = $('pubGalleryList');
+        const galleryArr = Array.isArray(restaurant.gallery) ? restaurant.gallery : [];
+        if (galleryArr.length) {
+          galSection.classList.remove('hidden');
+          galList.innerHTML = galleryArr.map(img => {
+            const safeImg = sanitizeImgUrl(img);
+            return safeImg ? `<img src="${safeImg}" loading="lazy" class="h-40 w-60 object-cover rounded-2xl shrink-0 shadow-sm border bg-white" />` : '';
+          }).join('');
+        }
+
+        const q = $('searchInput').value.trim().toLowerCase();
+        const filtered = dishes.filter(d => {
+          const matchesCat = selectedCategory === 'ALL' || d.category === selectedCategory;
+          const matchesQuery =
+            d.name.toLowerCase().includes(q) ||
+            (d.description && d.description.toLowerCase().includes(q)) ||
+            d.category.toLowerCase().includes(q);
+          return matchesCat && matchesQuery;
+        });
+
+        const container = $('pubMenuContainer');
+        if (!filtered.length) {
+          container.innerHTML = `<div class="text-center py-12 text-slate-500 text-sm">No hay platillos disponibles.</div>`;
+          updateCartBar();
+          return;
+        }
+
+        const categories = [...new Set(filtered.map(d => d.category))];
+        container.innerHTML = categories.map(cat => `
+          <div class="space-y-3">
+            <h2 class="text-lg font-extrabold text-slate-950 border-b border-slate-200 pb-1.5">${escapeHtml(cat)}</h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+              ${filtered.filter(d => d.category === cat).map(d => {
+                const effectivePrice = getEffectivePrice(d);
+                const hasDiscount = d.is_promo && d.promo_price && Number(d.promo_price) > 0;
+                const safeImg = sanitizeImgUrl(d.image_url);
+                const qty = Math.max(0, Math.min(99, cart[d.id] || 0));
+                return `
+                <div class="bg-white p-4 rounded-2xl border ${d.is_promo && !d.is_sold_out ? 'border-amber-400 ring-1 ring-amber-300' : 'border-slate-200'} shadow-sm flex justify-between gap-3 relative ${d.is_sold_out ? 'opacity-70 bg-slate-100' : ''}">
+                  <div class="flex flex-col justify-between flex-1 min-w-0">
+                    <div>
+                      <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                        ${d.is_sold_out
+                          ? `<span class="bg-red-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">🚫 Agotado</span>`
+                          : (d.is_promo ? `<span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">🔥 ${escapeHtml(d.promo_label || 'Promoción')}</span>` : '')
+                        }
+                      </div>
+                      <h3 class="font-bold text-slate-950 text-sm">${escapeHtml(d.name)}</h3>
+                      ${d.description ? `<p class="text-xs text-slate-700 mt-1 line-clamp-2">${escapeHtml(d.description)}</p>` : ''}
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between gap-2">
+                      <div>
+                        ${hasDiscount
+                          ? `<span class="text-[11px] line-through text-slate-400 block leading-none">₡${Number(d.price).toLocaleString('es-CR')}</span>
+                             <span class="font-extrabold text-sm text-emerald-700">₡${effectivePrice.toLocaleString('es-CR')}</span>`
+                          : `<span class="font-extrabold text-sm text-slate-950">₡${effectivePrice.toLocaleString('es-CR')}</span>`
+                        }
+                      </div>
+
+                      ${d.is_sold_out
+                        ? `<span class="text-[11px] font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-xl border border-red-200">No disponible</span>`
+                        : `<div class="flex items-center gap-2 bg-slate-100 rounded-xl px-2 py-1">
+                            <button type="button" data-cartid="${escapeHtml(d.id)}" data-delta="-1" class="w-6 h-6 font-bold text-slate-800 cursor-pointer">-</button>
+                            <span class="text-xs font-extrabold w-4 text-center">${qty}</span>
+                            <button type="button" data-cartid="${escapeHtml(d.id)}" data-delta="1" class="w-6 h-6 font-bold text-slate-800 cursor-pointer">+</button>
+                          </div>`
+                      }
+                    </div>
+                  </div>
+                  ${safeImg ? `<img src="${safeImg}" loading="lazy" class="w-24 h-24 rounded-xl object-cover shrink-0 border ${d.is_sold_out ? 'grayscale' : ''}" />` : ''}
+                </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `).join('');
+
+        updateCartBar();
+      }
+
+      function updateCart(id, delta) {
+        const target = dishes.find(d => d.id === id);
+        if (!target || target.is_sold_out) return;
+        const step = delta > 0 ? 1 : -1;
+        const next = Math.min(99, (cart[id] || 0) + step);
+        if (next <= 0) delete cart[id];
+        else cart[id] = next;
+        renderMenu();
+      }
+
+      function getTotals() {
+        const selected = dishes.filter(d => cart[d.id] && !d.is_sold_out);
+        const count = selected.reduce((s, d) => s + cart[d.id], 0);
+        const subtotal = selected.reduce((s, d) => s + getEffectivePrice(d) * cart[d.id], 0);
+        const fee = (deliveryMode === 'express' && Number(restaurant?.delivery_fee) > 0) ? Number(restaurant.delivery_fee) : 0;
+        return { selected, count, subtotal, fee, total: subtotal + fee };
+      }
+
+      function updateCartBar() {
+        const bar = $('floatingCart');
+        const extras = $('checkoutExtrasBox');
+        const { selected, count, total } = getTotals();
+
+        if (!selected.length) {
+          bar.classList.add('hidden');
+          extras.classList.add('hidden');
+          return;
+        }
+
+        bar.classList.remove('hidden');
+        const hasExtras = (Number(restaurant?.delivery_fee) > 0) || !!restaurant?.sinpe_phone;
+        extras.classList.toggle('hidden', !hasExtras);
+
+        $('cartSummaryText').textContent = `🛒 Pedir por WhatsApp (${count})`;
+        $('cartTotalText').textContent = `₡${total.toLocaleString('es-CR')} →`;
+      }
+
+      function sendOrderToWhatsApp() {
+        const { selected, subtotal, fee, total } = getTotals();
+        if (!selected.length) return;
+
+        const lines = selected.map(d => {
+          const unit = getEffectivePrice(d);
+          const promoTag = d.is_promo ? ` [${d.promo_label || 'PROMO'}]` : '';
+          return `• ${cart[d.id]}x ${d.name}${promoTag} (₡${(unit * cart[d.id]).toLocaleString('es-CR')})`;
+        });
+
+        let extraLines = '';
+        if (Number(restaurant?.delivery_fee) > 0) {
+          if (deliveryMode === 'express') {
+            const addr = $('customerAddressInput').value.trim();
+            extraLines += `\n🛵 *Entrega:* Envío Express (+₡${fee.toLocaleString('es-CR')})`;
+            if (addr) extraLines += `\n📍 *Dirección:* ${addr}`;
+          } else {
+            extraLines += `\n🏪 *Entrega:* Retiro en el local`;
+          }
+        }
+
+        if (restaurant?.sinpe_phone) {
+          extraLines += `\n📲 *Método SINPE Móvil:* ${restaurant.sinpe_phone}`;
+        }
+
+        const text = `Hola *${restaurant.name}*, quisiera realizar este pedido:\n\n${lines.join('\n')}\n\nSubtotal: ₡${subtotal.toLocaleString('es-CR')}${extraLines}\n*Total a pagar: ₡${total.toLocaleString('es-CR')}*`;
+        const phone = String(restaurant.whatsapp || '').replace(/\D/g, '');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
       }
     })();
   </script>
