@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="theme-color" content="#ea580c" />
+  <title>Menú Digital</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-950 min-h-screen pb-28">
+
+  <header id="pubHeader" class="relative text-white px-6 py-12 shadow-md overflow-hidden transition-colors" style="background-color: #ea580c;">
+    <img id="pubBannerImg" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover" />
+    <div id="pubBannerOverlay" class="hidden absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/40"></div>
+
+    <div class="relative z-10 max-w-3xl mx-auto">
+      <span class="inline-block bg-black/30 backdrop-blur-sm text-white text-[11px] font-bold uppercase px-3 py-1 rounded-full mb-3">
+        Menú Digital Oficial
+      </span>
+      <h1 id="pubName" class="text-3xl sm:text-4xl font-extrabold tracking-tight">Cargando menú...</h1>
+      <p id="pubDesc" class="text-white/95 text-sm mt-2 max-w-xl"></p>
+      <p id="pubAddress" class="text-xs text-white/90 mt-3 font-bold"></p>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+    <div id="searchAndFilterBox" class="space-y-4">
+      <input
+        id="searchInput"
+        type="text"
+        maxlength="60"
+        placeholder="🔍 Buscar platillo o bebida..."
+        class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-sm text-slate-950 shadow-sm focus:outline-none focus:border-orange-500"
+      />
+      <div id="categoryPills" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+    </div>
+
+    <section id="pubGallerySection" class="hidden space-y-3">
+      <h2 class="font-extrabold text-slate-950 text-base">Conoce nuestro lugar</h2>
+      <div id="pubGalleryList" class="flex gap-3 overflow-x-auto pb-2"></div>
+    </section>
+
+    <section id="pubMenuContainer" class="space-y-8"></section>
+
+    <!-- MÓDULO EXCLUSIVO MASTER/PRO: ENTREGA EXPRESS Y SINPE MÓVIL (APARECE AL AGREGAR PLATILLOS) -->
+    <section id="checkoutExtrasBox" class="hidden bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+      <h3 class="font-extrabold text-sm text-slate-950">Detalles de Entrega y Pago</h3>
+
+      <!-- Express (Solo si el restaurante es Master/Pro y configuró tarifa > 0) -->
+      <div id="expressSelectorBox" class="hidden space-y-3">
+        <div class="grid grid-cols-2 gap-2 text-xs font-extrabold">
+          <button type="button" id="btnModePickup" class="py-2.5 px-3 rounded-xl border-2 border-slate-900 bg-slate-900 text-white cursor-pointer">
+            🏪 Retiro en Local (₡0)
+          </button>
+          <button type="button" id="btnModeExpress" class="py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer">
+            🛵 Envío Express (+<span id="expressFeeBtnLabel">₡0</span>)
+          </button>
+        </div>
+        <p id="expressZonesHint" class="text-[11px] text-slate-600"></p>
+        <div id="expressAddressField" class="hidden">
+          <label class="text-xs font-bold text-slate-800">Dirección exacta para el repartidor</label>
+          <input id="customerAddressInput" type="text" maxlength="160" placeholder="Ej. 200m norte de la iglesia, casa portón negro..." class="w-full mt-1 p-2.5 border border-slate-300 rounded-xl text-xs text-slate-950" />
+        </div>
+      </div>
+
+      <!-- SINPE Móvil (Solo si el restaurante es Pro VIP y configuró su número) -->
+      <div id="sinpeInfoBox" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p class="text-[11px] font-extrabold uppercase text-emerald-800">📲 Pago rápido por SINPE Móvil</p>
+          <p class="text-sm font-extrabold text-slate-950" id="sinpePhoneDisplay">8888-8888</p>
+          <p class="text-[11px] text-slate-700" id="sinpeOwnerDisplay"></p>
+        </div>
+        <button type="button" id="btnCopySinpe" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold px-3 py-2 rounded-xl cursor-pointer">
+          📋 Copiar Número
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="floatingCart" class="hidden fixed bottom-4 inset-x-4 max-w-3xl mx-auto z-40">
+    <button id="btnSendWhatsapp" type="button" class="w-full text-white py-4 px-6 rounded-2xl shadow-2xl font-extrabold flex items-center justify-between cursor-pointer" style="background-color: #ea580c;">
+      <span id="cartSummaryText">🛒 Pedir por WhatsApp (0)</span>
+      <span id="cartTotalText">₡0 →</span>
+    </button>
+  </div>
+
+  <footer class="text-center text-[11px] text-slate-500 py-6">
+    Plataforma SaaS por <strong>Farj Services</strong>
+  </footer>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const CFG = Object.freeze({
+        u: atob('aHR0cHM6Ly9kYWJyaXZpdnJweXVseHFnY21pZy5zdXBhYmFzZS5jbw=='),
+        k: atob('c2JfcHVibGlzaGFibGVfeTk5cklfc3dod1ZSMVVUVFRUMHhiZ19ZLWZwMEZlZA==')
+      });
+
+      const sb = window.supabase.createClient(CFG.u, CFG.k);
+
+      let restaurant = null;
+      let dishes = [];
+      let cart = {};
+      let selectedCategory = 'ALL';
+      let deliveryMode = 'pickup'; // 'pickup' | 'express'
+
+      const $ = (id) => document.getElementById(id);
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+
+      function sanitizeImgUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        return /^https:\/\/[a-z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\//i.test(url) ? url : '';
+      }
+
+      function safeColor(hex) {
+        return /^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ea580c';
+      }
+
+      function getEffectivePrice(dish) {
+        if (dish.is_promo && dish.promo_price && Number(dish.promo_price) > 0) {
+          return Number(dish.promo_price);
+        }
+        return Math.max(0, Number(dish.price) || 0);
+      }
+
+      function detectSlugFromUrl() {
+        const paramSlug = new URLSearchParams(window.location.search).get('r');
+        if (paramSlug) return paramSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+        const cleanPath = window.location.pathname
+          .replace(/^\/+|\/+$/g, '')
+          .replace(/\.html$/i, '');
+        if (cleanPath && cleanPath !== 'index' && cleanPath !== 'admin') {
+          return cleanPath.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+        return null;
+      }
+
+      function setDeliveryMode(mode) {
+        deliveryMode = mode;
+        const isExp = mode === 'express';
+        $('btnModePickup').className = !isExp
+          ? 'py-2.5 px-3 rounded-xl border-2 border-slate-900 bg-slate-900 text-white cursor-pointer'
+          : 'py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer';
+        $('btnModeExpress').className = isExp
+          ? 'py-2.5 px-3 rounded-xl border-2 border-orange-600 bg-orange-600 text-white cursor-pointer'
+          : 'py-2.5 px-3 rounded-xl border-2 border-slate-300 bg-white text-slate-800 cursor-pointer';
+        $('expressAddressField').classList.toggle('hidden', !isExp);
+        updateCartBar();
+      }
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        $('searchInput').addEventListener('input', renderMenu);
+        $('btnSendWhatsapp').addEventListener('click', sendOrderToWhatsApp);
+        $('btnModePickup').addEventListener('click', () => setDeliveryMode('pickup'));
+        $('btnModeExpress').addEventListener('click', () => setDeliveryMode('express'));
+        $('btnCopySinpe').addEventListener('click', () => {
+          if (restaurant?.sinpe_phone) {
+            navigator.clipboard.writeText(restaurant.sinpe_phone);
+            $('btnCopySinpe').textContent = '✅ ¡Copiado!';
+            setTimeout(() => { $('btnCopySinpe').textContent = '📋 Copiar Número'; }, 2500);
+          }
+        });
+
+        $('categoryPills').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-cat]');
+          if (btn) {
+            selectedCategory = btn.dataset.cat;
+            renderCategoryPills();
+            renderMenu();
+          }
+        });
+
+        $('pubMenuContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-cartid]');
+          if (btn) {
+            updateCart(btn.dataset.cartid, Number(btn.dataset.delta));
+          }
+        });
+
+        const slug = detectSlugFromUrl();
+        const { data: rows } = await sb.rpc('get_public_restaurant', { p_slug: slug });
+        const restData = Array.isArray(rows) ? rows[0] : rows;
+
+        if (!restData) {
+          $('searchAndFilterBox').classList.add('hidden');
+          $('pubName').textContent = 'Restaurante no encontrado';
+          $('pubDesc').textContent = 'Verifica el enlace compartido por el negocio.';
+          return;
+        }
+
+        restaurant = restData;
+
+        if (restaurant.is_active === false) {
+          document.title = `${restaurant.name} | Servicio Suspendido`;
+          $('pubHeader').style.backgroundColor = '#0f172a';
+          $('pubName').textContent = restaurant.name;
+          $('pubDesc').textContent = 'Este menú digital se encuentra temporalmente suspendido.';
+          $('searchAndFilterBox').classList.add('hidden');
+          $('pubMenuContainer').innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center space-y-2 shadow-sm">
+              <p class="text-base font-extrabold">⚠️ Menú Temporalmente Suspendido</p>
+              <p class="text-xs font-medium text-red-600">Si eres el propietario de este establecimiento, contacta a soporte de <strong>Farj Services</strong> para reactivar el servicio.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Configurar bloques exclusivos Master/Pro si están activos en este restaurante
+        const fee = Number(restaurant.delivery_fee) || 0;
+        if (fee > 0) {
+          $('expressSelectorBox').classList.remove('hidden');
+          $('expressFeeBtnLabel').textContent = `₡${fee.toLocaleString('es-CR')}`;
+          if (restaurant.delivery_zones) {
+            $('expressZonesHint').textContent = `📍 Cobertura Express: ${restaurant.delivery_zones}`;
+          }
+        }
+        if (restaurant.sinpe_phone) {
+          $('sinpeInfoBox').classList.remove('hidden');
+          $('sinpePhoneDisplay').textContent = restaurant.sinpe_phone;
+          $('sinpeOwnerDisplay').textContent = restaurant.sinpe_owner ? `Titular: ${restaurant.sinpe_owner}` : '';
+        }
+
+        const { data: dishData } = await sb
+          .from('menu_dishes')
+          .select('id, name, category, price, description, image_url, is_sold_out, is_promo, promo_label, promo_price')
+          .eq('restaurant_id', restaurant.id)
+          .order('created_at', { ascending: false });
+
+        dishes = dishData || [];
+        renderCategoryPills();
+        renderMenu();
+      });
+
+      function renderCategoryPills() {
+        const pillsBox = $('categoryPills');
+        const categories = [...new Set(dishes.map(d => d.category))];
+        if (categories.length <= 1) {
+          pillsBox.innerHTML = '';
+          return;
+        }
+        const brandColor = safeColor(restaurant?.color);
+        const allCats = ['ALL', ...categories];
+        pillsBox.innerHTML = allCats.map(cat => {
+          const active = selectedCategory === cat;
+          const label = cat === 'ALL' ? 'Todos' : escapeHtml(cat);
+          return `
+            <button
+              type="button"
+              data-cat="${escapeHtml(cat)}"
+              style="${active ? `background-color: ${brandColor}; color: #fff; border-color: ${brandColor};` : ''}"
+              class="px-4 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition cursor-pointer ${active ? 'shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'}"
+            >
+              ${label}
+            </button>
+          `;
+        }).join('');
+      }
+
+      function renderMenu() {
+        if (!restaurant || restaurant.is_active === false) return;
+        const brandColor = safeColor(restaurant.color);
+        document.title = `${restaurant.name} | Menú Digital`;
+        $('pubHeader').style.backgroundColor = brandColor;
+        $('btnSendWhatsapp').style.backgroundColor = brandColor;
+        $('pubName').textContent = restaurant.name;
+        $('pubDesc').textContent = restaurant.description || '';
+        $('pubAddress').textContent = restaurant.address ? `📍 ${restaurant.address}` : '';
+
+        const bannerImg = $('pubBannerImg');
+        const bannerOverlay = $('pubBannerOverlay');
+        const safeBanner = sanitizeImgUrl(restaurant.banner_url);
+        if (safeBanner) {
+          bannerImg.src = safeBanner;
+          bannerImg.classList.remove('hidden');
+          bannerOverlay.classList.remove('hidden');
+        }
+
+        const galSection = $('pubGallerySection');
+        const galList = $('pubGalleryList');
+        const galleryArr = Array.isArray(restaurant.gallery) ? restaurant.gallery : [];
+        if (galleryArr.length) {
+          galSection.classList.remove('hidden');
+          galList.innerHTML = galleryArr.map(img => {
+            const safeImg = sanitizeImgUrl(img);
+            return safeImg ? `<img src="${safeImg}" loading="lazy" class="h-40 w-60 object-cover rounded-2xl shrink-0 shadow-sm border bg-white" />` : '';
+          }).join('');
+        }
+
+        const q = $('searchInput').value.trim().toLowerCase();
+        const filtered = dishes.filter(d => {
+          const matchesCat = selectedCategory === 'ALL' || d.category === selectedCategory;
+          const matchesQuery =
+            d.name.toLowerCase().includes(q) ||
+            (d.description && d.description.toLowerCase().includes(q)) ||
+            d.category.toLowerCase().includes(q);
+          return matchesCat && matchesQuery;
+        });
+
+        const container = $('pubMenuContainer');
+        if (!filtered.length) {
+          container.innerHTML = `<div class="text-center py-12 text-slate-500 text-sm">No hay platillos disponibles.</div>`;
+          updateCartBar();
+          return;
+        }
+
+        const categories = [...new Set(filtered.map(d => d.category))];
+        container.innerHTML = categories.map(cat => `
+          <div class="space-y-3">
+            <h2 class="text-lg font-extrabold text-slate-950 border-b border-slate-200 pb-1.5">${escapeHtml(cat)}</h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+              ${filtered.filter(d => d.category === cat).map(d => {
+                const effectivePrice = getEffectivePrice(d);
+                const hasDiscount = d.is_promo && d.promo_price && Number(d.promo_price) > 0;
+                const safeImg = sanitizeImgUrl(d.image_url);
+                const qty = Math.max(0, Math.min(99, cart[d.id] || 0));
+                return `
+                <div class="bg-white p-4 rounded-2xl border ${d.is_promo && !d.is_sold_out ? 'border-amber-400 ring-1 ring-amber-300' : 'border-slate-200'} shadow-sm flex justify-between gap-3 relative ${d.is_sold_out ? 'opacity-70 bg-slate-100' : ''}">
+                  <div class="flex flex-col justify-between flex-1 min-w-0">
+                    <div>
+                      <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                        ${d.is_sold_out
+                          ? `<span class="bg-red-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">🚫 Agotado</span>`
+                          : (d.is_promo ? `<span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md">🔥 ${escapeHtml(d.promo_label || 'Promoción')}</span>` : '')
+                        }
+                      </div>
+                      <h3 class="font-bold text-slate-950 text-sm">${escapeHtml(d.name)}</h3>
+                      ${d.description ? `<p class="text-xs text-slate-700 mt-1 line-clamp-2">${escapeHtml(d.description)}</p>` : ''}
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between gap-2">
+                      <div>
+                        ${hasDiscount
+                          ? `<span class="text-[11px] line-through text-slate-400 block leading-none">₡${Number(d.price).toLocaleString('es-CR')}</span>
+                             <span class="font-extrabold text-sm text-emerald-700">₡${effectivePrice.toLocaleString('es-CR')}</span>`
+                          : `<span class="font-extrabold text-sm text-slate-950">₡${effectivePrice.toLocaleString('es-CR')}</span>`
+                        }
+                      </div>
+
+                      ${d.is_sold_out
+                        ? `<span class="text-[11px] font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-xl border border-red-200">No disponible</span>`
+                        : `<div class="flex items-center gap-2 bg-slate-100 rounded-xl px-2 py-1">
+                            <button type="button" data-cartid="${escapeHtml(d.id)}" data-delta="-1" class="w-6 h-6 font-bold text-slate-800 cursor-pointer">-</button>
+                            <span class="text-xs font-extrabold w-4 text-center">${qty}</span>
+                            <button type="button" data-cartid="${escapeHtml(d.id)}" data-delta="1" class="w-6 h-6 font-bold text-slate-800 cursor-pointer">+</button>
+                          </div>`
+                      }
+                    </div>
+                  </div>
+                  ${safeImg ? `<img src="${safeImg}" loading="lazy" class="w-24 h-24 rounded-xl object-cover shrink-0 border ${d.is_sold_out ? 'grayscale' : ''}" />` : ''}
+                </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `).join('');
+
+        updateCartBar();
+      }
+
+      function updateCart(id, delta) {
+        const target = dishes.find(d => d.id === id);
+        if (!target || target.is_sold_out) return;
+        const step = delta > 0 ? 1 : -1;
+        const next = Math.min(99, (cart[id] || 0) + step);
+        if (next <= 0) delete cart[id];
+        else cart[id] = next;
+        renderMenu();
+      }
+
+      function getTotals() {
+        const selected = dishes.filter(d => cart[d.id] && !d.is_sold_out);
+        const count = selected.reduce((s, d) => s + cart[d.id], 0);
+        const subtotal = selected.reduce((s, d) => s + getEffectivePrice(d) * cart[d.id], 0);
+        const fee = (deliveryMode === 'express' && Number(restaurant?.delivery_fee) > 0) ? Number(restaurant.delivery_fee) : 0;
+        return { selected, count, subtotal, fee, total: subtotal + fee };
+      }
+
+      function updateCartBar() {
+        const bar = $('floatingCart');
+        const extras = $('checkoutExtrasBox');
+        const { selected, count, total } = getTotals();
+
+        if (!selected.length) {
+          bar.classList.add('hidden');
+          extras.classList.add('hidden');
+          return;
+        }
+
+        bar.classList.remove('hidden');
+        const hasExtras = (Number(restaurant?.delivery_fee) > 0) || !!restaurant?.sinpe_phone;
+        extras.classList.toggle('hidden', !hasExtras);
+
+        $('cartSummaryText').textContent = `🛒 Pedir por WhatsApp (${count})`;
+        $('cartTotalText').textContent = `₡${total.toLocaleString('es-CR')} →`;
+      }
+
+      function sendOrderToWhatsApp() {
+        const { selected, subtotal, fee, total } = getTotals();
+        if (!selected.length) return;
+
+        const lines = selected.map(d => {
+          const unit = getEffectivePrice(d);
+          const promoTag = d.is_promo ? ` [${d.promo_label || 'PROMO'}]` : '';
+          return `• ${cart[d.id]}x ${d.name}${promoTag} (₡${(unit * cart[d.id]).toLocaleString('es-CR')})`;
+        });
+
+        let extraLines = '';
+        if (Number(restaurant?.delivery_fee) > 0) {
+          if (deliveryMode === 'express') {
+            const addr = $('customerAddressInput').value.trim();
+            extraLines += `\n🛵 *Entrega:* Envío Express (+₡${fee.toLocaleString('es-CR')})`;
+            if (addr) extraLines += `\n📍 *Dirección:* ${addr}`;
+          } else {
+            extraLines += `\n🏪 *Entrega:* Retiro en el local`;
+          }
+        }
+
+        if (restaurant?.sinpe_phone) {
+          extraLines += `\n📲 *Método SINPE Móvil:* ${restaurant.sinpe_phone}`;
+        }
+
+        const text = `Hola *${restaurant.name}*, quisiera realizar este pedido:\n\n${lines.join('\n')}\n\nSubtotal: ₡${subtotal.toLocaleString('es-CR')}${extraLines}\n*Total a pagar: ₡${total.toLocaleString('es-CR')}*`;
+        const phone = String(restaurant.whatsapp || '').replace(/\D/g, '');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+      }
+    })();
+  </script>
+</body>
+</html>
